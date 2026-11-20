@@ -171,10 +171,14 @@
   .col.fill .chips{flex:1;min-height:0;flex-direction:column;justify-content:space-evenly;gap:.9vh;flex-wrap:nowrap}
   .big-quote{font-size:4.4vh;font-weight:800;line-height:1.25;letter-spacing:-.01em}
   @media print{
-    html,body{overflow:visible;height:auto}
+    @page{size:297mm 167mm;margin:0}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    html,body{overflow:visible;height:auto;width:auto;background:#07070b}
     #deck{height:auto}
-    .slide{display:flex!important;position:relative;inset:auto;opacity:1;page-break-after:always;height:100vh}
-    #nav,#num,#bar{display:none}
+    .slide{display:flex!important;position:relative;inset:auto;opacity:1;transform:none!important;animation:none!important;
+      width:297mm;height:167mm;min-height:167mm;page-break-after:always;break-after:page;break-inside:avoid;overflow:hidden}
+    .slide:last-of-type{page-break-after:auto;break-after:auto}
+    #nav,#num,#bar,.tapzone{display:none!important}
   }
 </style>
 </head>
