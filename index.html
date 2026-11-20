@@ -117,16 +117,15 @@
   .price li{font-size:2.05vh;color:var(--muted);padding-left:1.6vw;position:relative;line-height:1.4}
   .price li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:900}
   .price li b{color:var(--text)}
-  .tapzone{position:fixed;top:50%;width:6.4vh;height:9.4vh;z-index:45;display:flex;align-items:center;justify-content:center;
-    color:rgba(233,233,242,.55);font-size:4.4vh;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;
-    background:rgba(20,20,29,.38);border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(4px);
-    opacity:.55;transition:opacity .25s ease,background .25s ease,color .25s ease,border-color .25s ease,transform .25s ease,box-shadow .25s ease}
-  .tapzone.left{left:0;border-left:none;border-radius:0 16px 16px 0;transform:translate(-30%, -50%)}
-  .tapzone.right{right:0;border-right:none;border-radius:16px 0 0 16px;transform:translate(30%, -50%)}
-  body:hover .tapzone{opacity:.85;transform:translate(0,-50%)}
-  .tapzone:hover,.tapzone:active{opacity:1;color:#fff;background:rgba(255,77,94,.22);border-color:rgba(255,77,94,.7);
-    box-shadow:0 0 24px rgba(255,77,94,.25),0 8px 24px rgba(0,0,0,.35);transform:translate(0,-50%) scale(1.06)}
-  @media (hover:none){.tapzone,.tapzone.left,.tapzone.right{opacity:.9;transform:translate(0,-50%);background:rgba(20,20,29,.55)}}
+  .tapzone{position:fixed;top:50%;width:6.6vh;height:9.8vh;z-index:45;display:flex;align-items:center;justify-content:center;
+    color:#e9e9f2;font-size:4.6vh;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;
+    background:rgba(20,20,29,.78);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(6px);
+    box-shadow:0 6px 18px rgba(0,0,0,.35);
+    transition:background .2s ease,color .2s ease,border-color .2s ease,transform .2s ease,box-shadow .2s ease}
+  .tapzone.left{left:.4vw;border-radius:16px;transform:translateY(-50%)}
+  .tapzone.right{right:.4vw;border-radius:16px;transform:translateY(-50%)}
+  .tapzone:hover,.tapzone:active{color:#fff;background:rgba(255,77,94,.28);border-color:rgba(255,77,94,.85);
+    box-shadow:0 0 28px rgba(255,77,94,.35),0 10px 26px rgba(0,0,0,.4);transform:translateY(-50%) scale(1.08)}
   .shot img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
   .shot .cap{position:absolute;top:0;left:0;background:rgba(7,7,11,.85);border-bottom-right-radius:10px;
     padding:.55vh .8vw;font-size:1.95vh;color:var(--green);font-weight:700;letter-spacing:.03em}
