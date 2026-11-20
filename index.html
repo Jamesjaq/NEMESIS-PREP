@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEMESIS — Autonomous Pentest & Fix Verification · Human-in-the-Loop</title>
+<style>
+  :root{
+    --bg:#07070b; --panel:#101018; --panel2:#15151f;
+    --text:#e9e9f2; --muted:#9a9ab4; --dim:#6b6b85;
+    --red:#ff4d5e; --red2:#e50914; --green:#21d07a; --amber:#ffb020; --blue:#4da3ff;
+    --line:#24243a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--text);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;overflow:hidden}
+  #deck{height:100vh;width:100vw;position:relative}
+  .slide{position:absolute;inset:0;display:none;flex-direction:column;
+    padding:4.2vh 4.5vw 6.5vh;opacity:0;transition:opacity .35s ease}
+  .slide.active{display:flex;opacity:1}
+  h1{font-size:6.2vh;line-height:1.05;font-weight:800;letter-spacing:-.02em}
+  h2{font-size:4.6vh;line-height:1.1;font-weight:800;letter-spacing:-.015em;margin-bottom:1vh}
+  h3{font-size:2.9vh;font-weight:700}
+  .kicker{display:inline-flex;align-items:center;gap:.6vh;font-size:2.1vh;font-weight:700;
+    text-transform:uppercase;letter-spacing:.18em;color:var(--red);margin-bottom:1.6vh}
+  .kicker::before{content:"";width:2.6vh;height:.35vh;background:var(--red);display:inline-block}
+  p.lead{font-size:2.55vh;line-height:1.45;color:var(--text);max-width:62ch}
+  .muted{color:var(--muted)}
+  .small{font-size:2vh;line-height:1.4;color:var(--muted)}
+  .src{position:absolute;left:8.5vw;right:4.5vw;bottom:1.9vh;font-size:1.95vh;color:var(--dim);line-height:1.35}
+  .accent{color:var(--red)} .green{color:var(--green)} .amber{color:var(--amber)} .blue{color:var(--blue)}
+  .hl{background:linear-gradient(transparent 62%,rgba(255,77,94,.35) 0);font-weight:700}
+  .hl-g{background:linear-gradient(transparent 62%,rgba(33,208,122,.3) 0);font-weight:700}
+  /* progress + chrome */
+  #bar{position:fixed;top:0;left:0;height:.5vh;background:linear-gradient(90deg,var(--red2),var(--red));z-index:50;transition:width .3s}
+  #num{position:fixed;right:1.4vw;bottom:1.3vh;font-size:1.85vh;color:var(--dim);z-index:50;font-variant-numeric:tabular-nums}
+  #nav{position:fixed;left:1.4vw;bottom:1.1vh;z-index:50;display:flex;gap:.8vw;align-items:center}
+  #nav button{background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    width:4.2vh;height:4.2vh;border-radius:10px;font-size:2vh;cursor:pointer}
+  #nav button:hover{color:#fff;border-color:var(--red)}
+  .tag{display:inline-block;background:var(--panel2);border:1px solid var(--line);color:var(--muted);
+    font-size:2vh;padding:.45vh 1vw;border-radius:99px;margin-right:.5vw;margin-top:.6vh}
+  .tag.red{border-color:rgba(255,77,94,.5);color:var(--red)}
+  .tag.green{border-color:rgba(33,208,122,.5);color:var(--green)}
+  /* title slide */
+  .cover{justify-content:center;align-items:flex-start;position:absolute;inset:0}
+  .cover .bg{position:absolute;inset:0;background:url('img/govt_websites_hacked.webp') center/cover no-repeat;opacity:.34;filter:saturate(.85)}
+  .cover .bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,7,11,.82),rgba(7,7,11,.55) 45%,rgba(7,7,11,.95))}
+  .cover .inner{position:relative;z-index:2;padding:0 1vw}
+  .logo{font-weight:900;letter-spacing:.34em;font-size:2.4vh;color:var(--red);margin-bottom:2.4vh;display:flex;align-items:center;gap:1vw}
+  .logo .dot{width:1.1vh;height:1.1vh;border-radius:50%;background:var(--red);box-shadow:0 0 1.6vh var(--red)}
+  .sub{font-size:2.7vh;color:var(--text);margin-top:2.2vh;font-weight:500;line-height:1.4;max-width:56ch}
+  .meta{margin-top:4.2vh;display:flex;gap:1vw;flex-wrap:wrap}
+  .meta span{background:rgba(255,255,255,.06);border:1px solid var(--line);padding:.7vh 1.2vw;border-radius:8px;font-size:2.05vh;color:var(--muted)}
+  /* team banner — spans the full page width */
+  .team{position:absolute;left:0;right:0;bottom:6.6vh;padding:0 3vw;z-index:3;pointer-events:none}
+  .team .tname{display:flex;justify-content:space-between;width:100%;font-size:5.6vh;font-weight:900;line-height:1;text-transform:uppercase;
+    background:linear-gradient(90deg,#ff4b5c 0%,#ffd9de 42%,#ffffff 50%,#d9fff0 58%,#21d07a 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .team .tname .gap{width:4.5vw;flex:none}
+  .team .tuni{margin-top:1.1vh;text-align:center;font-size:2.3vh;font-weight:700;letter-spacing:.5em;text-indent:.5em;text-transform:uppercase;color:var(--muted)}
+  /* grids & cards */
+  .row{display:flex;gap:2vw;flex:1;min-height:0;align-items:stretch}
+  .col{flex:1;display:flex;flex-direction:column;gap:1.6vh;min-width:0;min-height:0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1.8vh 1.4vw}
+  .card h3{margin-bottom:.8vh}
+  .card p{font-size:2.05vh;line-height:1.45;color:var(--muted)}
+  .card.danger{border-color:rgba(255,77,94,.45);background:linear-gradient(180deg,rgba(255,77,94,.08),rgba(255,77,94,.02))}
+  .card.good{border-color:rgba(33,208,122,.45);background:linear-gradient(180deg,rgba(33,208,122,.08),rgba(33,208,122,.02))}
+  .photo{border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#000;position:relative}
+  .photo img{width:100%;height:100%;object-fit:cover;display:block}
+  .photo .cap{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.92));
+    font-size:1.95vh;color:#e5e5f2;padding:3.5vh .8vw .7vh;line-height:1.4}
+  /* stats */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1.6vh;flex:1}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:2vh 1.4vw;display:flex;flex-direction:column;justify-content:center}
+  .stat .big{font-size:5.6vh;font-weight:900;letter-spacing:-.02em;color:var(--red);line-height:1}
+  .stat .big.g{color:var(--green)} .stat .big.w{color:var(--amber)} .stat .big.b{color:var(--blue)}
+  .stat .lbl{font-size:2vh;color:var(--text);font-weight:600;margin-top:.9vh;line-height:1.3}
+  .stat .note{font-size:1.75vh;color:var(--dim);margin-top:.5vh;line-height:1.35}
+  /* timeline */
+  .tl{display:flex;flex-direction:column;gap:1.4vh;flex:1;justify-content:center}
+  .tl-item{display:grid;grid-template-columns:14vw 1fr;gap:1.4vw;align-items:center;
+    background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--red);border-radius:10px;padding:1.5vh 1.2vw}
+  .tl-item .date{font-size:2.1vh;font-weight:800;color:var(--red)}
+  .tl-item .what{font-size:2.1vh;line-height:1.42}
+  .tl-item .what b{color:#fff}
+  .tl-item.warn{border-left-color:var(--amber)} .tl-item.warn .date{color:var(--amber)}
+  /* table */
+  table{width:100%;border-collapse:collapse;font-size:2.05vh}
+  th{ text-align:left;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    font-size:1.95vh;padding:1vh .8vw;border-bottom:1px solid var(--line)}
+  td{padding:1.15vh .8vw;border-bottom:1px solid var(--line);color:var(--muted);line-height:1.4;vertical-align:top}
+  td:first-child{color:var(--text);font-weight:700}
+  tr.win td{background:rgba(33,208,122,.09);color:#cdeee0}
+  tr.win td:first-child{color:var(--green);font-weight:900}
+  .cost{color:var(--amber);font-weight:700}
+  tr.win .cost{color:var(--green)}
+  /* screenshots */
+  .shots{display:grid;gap:1.4vh;flex:1;min-height:0}
+  .shots.g3{grid-template-columns:1.3fr 1fr;grid-template-rows:1fr 1fr}
+  .shots.g2{grid-template-columns:1fr 1fr}
+  .shot{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0b0b12;min-height:0}
+  .shot img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+  .shot .cap{position:absolute;top:0;left:0;background:rgba(7,7,11,.85);border-bottom-right-radius:10px;
+    padding:.55vh .8vw;font-size:1.95vh;color:var(--green);font-weight:700;letter-spacing:.03em}
+  .shot .cap.red{color:var(--red)} .shot .cap.blue{color:var(--blue)} .shot .cap.amber{color:var(--amber)}
+  /* architecture */
+  .arch{flex:1;display:flex;flex-direction:column;gap:1.2vh;min-height:0}
+  .arch svg{width:100%;flex:1;min-height:0}
+  .arch-notes{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2vw;flex-shrink:0}
+  .an{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.1vh 1vw;font-size:1.75vh;line-height:1.4;color:var(--muted)}
+  .an b{color:var(--text)}
+  .an .n{display:inline-block;background:var(--red);color:#fff;font-size:1.85vh;font-weight:800;width:2.6vh;height:2.6vh;
+    line-height:2.6vh;text-align:center;border-radius:50%;margin-right:.5vw}
+  /* story */
+  .story{background:var(--panel);border:1px solid rgba(255,77,94,.4);border-radius:14px;padding:2.2vh 1.6vw;
+    font-size:2.2vh;line-height:1.5;color:#dcdcea;position:relative}
+  .story::before{content:"“";position:absolute;top:-1.2vh;left:1vw;font-size:9vh;color:rgba(255,77,94,.35);font-family:Georgia,serif;line-height:1}
+  .story .who{display:block;margin-top:1.2vh;font-size:1.9vh;color:var(--amber);font-weight:700}
+  .chips{display:flex;gap:.6vw;flex-wrap:wrap;margin-top:1.2vh}
+  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:.7vh .8vw;font-size:1.85vh;color:var(--muted);line-height:1.35}
+  .chip b{color:var(--text)}
+  /* mapping grid */
+  .map{display:grid;grid-template-columns:1fr 1fr;gap:1.4vh;flex:1;min-height:0}
+  .mrow{display:grid;grid-template-columns:1fr 1fr;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .mrow .p{padding:1.4vh 1.1vw;font-size:2vh;line-height:1.4;color:#ffb9c0;border-right:1px dashed var(--line);
+    background:linear-gradient(90deg,rgba(255,77,94,.12),transparent)}
+  .mrow .s{padding:1.4vh 1.1vw;font-size:2vh;line-height:1.4;color:#b9f0d5;background:linear-gradient(90deg,transparent,rgba(33,208,122,.08))}
+  .mrow .p b{display:block;color:var(--red);font-size:1.95vh;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4vh}
+  .mrow .s b{display:block;color:var(--green);font-size:1.95vh;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4vh}
+  /* flow pills */
+  .flow{display:flex;align-items:center;gap:.7vw;margin:1.4vh 0;flex-wrap:wrap}
+  .flow .pill{background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:.8vh 1.1vw;font-size:2vh;font-weight:700;color:var(--text)}
+  .flow .pill.r{border-color:rgba(255,77,94,.6);color:var(--red)}
+  .flow .pill.g{border-color:rgba(33,208,122,.6);color:var(--green)}
+  .flow .arr{color:var(--dim);font-size:2vh}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:1.6vw;flex:1;min-height:0}
+  ul.clean{list-style:none;display:flex;flex-direction:column;gap:1.1vh}
+  ul.clean li{font-size:2vh;line-height:1.42;color:var(--muted);padding-left:1.6vw;position:relative}
+  ul.clean li::before{content:"▸";position:absolute;left:0;color:var(--red);font-weight:900}
+  ul.clean li b{color:var(--text)}
+  /* sparse slides: stretch content to fill the frame */
+  .two.grow .col .card,.row.grow .col .card{flex:1}
+  .two.distribute ul.clean{flex:1;justify-content:space-evenly}
+  .two.distribute ul.clean li{font-size:2.2vh}
+  /* fill a column's remaining height with its content */
+  .col.fill ul.clean{flex:1;min-height:0;justify-content:space-evenly;gap:1.6vh}
+  .col.fill ul.clean li{font-size:2.2vh}
+  .col.fill .chips{flex:1;min-height:0;flex-direction:column;justify-content:space-evenly;gap:.9vh;flex-wrap:nowrap}
+  .big-quote{font-size:4.4vh;font-weight:800;line-height:1.25;letter-spacing:-.01em}
+  @media print{
+    html,body{overflow:visible;height:auto}
+    #deck{height:auto}
+    .slide{display:flex!important;position:relative;inset:auto;opacity:1;page-break-after:always;height:100vh}
+    #nav,#num,#bar{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="bar" style="width:6%"></div>
+<div id="deck">
+
+<!-- 1 · TITLE -->
+<section class="slide cover active">
+  <div class="bg"></div>
+  <div class="inner">
+    <div class="logo"><span class="dot"></span> N E M E S I S</div>
+    <h1>Find the door <span class="accent">before they do.</span><br>Prove it. Fix it. <span class="green">Verify it.</span></h1>
+    <div class="sub">An AI autonomous penetration-testing system — with a human always in the loop.
+      Built for Kenya's digital public infrastructure, priced for everyone.</div>
+    <div class="meta">
+      <span>🤖 Multi-agent autonomous pentest</span>
+      <span>🛡️ Human-in-the-loop approvals</span>
+      <span>🔁 Fix verification &amp; retest loop</span>
+      <span>🔓 Open source · self-hosted</span>
+    </div>
+  </div>
+  <div class="team">
+    <div class="tname"><span>S</span><span>C</span><span>A</span><span>T</span><span>T</span><span>E</span><span>R</span><span>E</span><span>D</span><span class="gap"></span><span>M</span><span>A</span><span>N</span><span>T</span><span>I</span><span>S</span></div>
+    <div class="tuni">Machakos University</div>
+  </div>
+  <div class="src">Hackathon presentation · Background image: coordinated attack on Kenyan government websites, 17 Nov 2025 (Techweez)</div>
+</section>
+
+<!-- 2 · KENYA UNDER ATTACK -->
+<section class="slide">
+  <div class="kicker">The problem · Kenya under attack</div>
+  <h2>Kenya's government websites — and the President's own — keep falling</h2>
+  <div class="row" style="gap:1.6vw">
+    <div class="col" style="flex:1.25">
+      <div class="tl">
+        <div class="tl-item">
+          <div class="date">Feb 2025</div>
+          <div class="what"><b>Kenya's Companies Registry (BRS) breached.</b> Records of <b>2 million+ companies</b> — shareholders, directors, beneficial owners — sold on the dark web. ODPC calls it the <b>largest data breach involving a government entity</b> in Kenya's history. Nov 2026: case closed with <b>no fine</b>.</div>
+        </div>
+        <div class="tl-item">
+          <div class="date">17 Nov 2025</div>
+          <div class="what"><b>Coordinated cyberattack hits dozens of govt sites.</b> president.go.ke, Nairobi.go.ke and the Ministries of Interior, ICT, Health, Education, Labour, Tourism, Water &amp; Environment defaced with extremist messages — a national security response followed.</div>
+        </div>
+        <div class="tl-item">
+          <div class="date">18 Jul 2026</div>
+          <div class="what"><b>president.go.ke hacked again.</b> Homepage defaced with messages targeting President Ruto. Hackers demanded <b>5 BTC ≈ KSh 41 million (~$317,000)</b>. The site was taken offline; forensic audit launched with the National KE-CIRT/CC.</div>
+        </div>
+        <div class="tl-item warn">
+          <div class="date">26 Oct 2026</div>
+          <div class="what"><b>CA confirms an e-government breach</b> — system and attack details still undisclosed. The pattern repeats: breach → statement → audit → silence.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col" style="flex:.85;gap:1.4vh">
+      <div class="photo" style="flex:1.1">
+        <img src="img/statehouse_ruto.webp" alt="State House website hacked">
+        <div class="cap">president.go.ke defaced · ransom demanded in Bitcoin — Citizen Digital</div>
+      </div>
+      <div class="photo" style="flex:1">
+        <img src="img/statehouse_building.webp" alt="State House Nairobi">
+        <div class="cap">State House, Nairobi — the target, twice in 12 months</div>
+      </div>
+    </div>
+  </div>
+  <div class="src">Sources: TechTrendsKE / Innovation Village (BRS breach &amp; ODPC closure, Nov 2026) · KICTANet alert (17 Nov 2025) · Techweez / Citizen Digital / Cybernews / The Standard (Jul 2026) · Techweez (26 Oct 2026)</div>
+</section>
+
+<!-- 3 · COST IN NUMBERS -->
+<section class="slide">
+  <div class="kicker">The problem · the cost in numbers</div>
+  <h2>What insecure looks like on a balance sheet</h2>
+  <div class="stats">
+    <div class="stat"><div class="big">KSh 29.9B</div><div class="lbl">lost to cybercrime in just one quarter</div><div class="note">July–September 2025 alone — The Star / national cybercrime report, Apr 2026</div></div>
+    <div class="stat"><div class="big">11.12B</div><div class="lbl">cyber threat events in FY2025/26</div><div class="note">11,124,632,684 events · +29% vs 8.62B in 2024/25 · DDoS more than doubled — CA/KE-CIRT Q4 report, Sep 2026</div></div>
+    <div class="stat"><div class="big w">KSh 1.9B</div><div class="lbl">Kenyan bank fraud losses in 2025</div><div class="note">Record high, +19.4% — CBK Financial Sector Stability Report</div></div>
+    <div class="stat"><div class="big b">KSh 500M</div><div class="lbl">siphoned via SIM-swap fraud — 123,000+ fake SIMs</div><div class="note">2025 — INTERPOL African Cyberthreat Assessment Report 2026</div></div>
+    <div class="stat"><div class="big">KSh 41M</div><div class="lbl">ransom demanded to restore one government website</div><div class="note">5 BTC on president.go.ke, July 2026</div></div>
+    <div class="stat"><div class="big w">2M+</div><div class="lbl">company records stolen from the govt registry (BRS)</div><div class="note">Feb 2025 — largest gov breach in Kenyan history; closed with no fine, Nov 2026</div></div>
+  </div>
+  <div class="src">Sources: The Star (KSh 29.9B, Jul–Sep 2025, Apr 2026) · CA Kenya Q4 FY2025/26 Sector Statistics &amp; KE-CIRT/CC report (Sep 2026) · CBK Financial Sector Stability Report 2025 · INTERPOL African Cyberthreat Assessment Report 2026 · Citizen Digital · TechTrendsKE (BRS)</div>
+</section>
+
+<!-- 4 · HUMAN COST / ECITIZEN -->
+<section class="slide">
+  <div class="kicker">The problem · when eCitizen fails, people suffer</div>
+  <h2>Behind every outage is a person who just couldn't log in</h2>
+  <div class="row" style="gap:1.8vw">
+    <div class="col fill" style="flex:1.05">
+      <div class="story">
+        Wanjiru, a mother in Nakuru, sat outside the Huduma centre on the last day to register her daughter's birth certificate — the document the school demanded before admitting the child.
+        eCitizen wouldn't log her in. <b>The nationwide outage ran for days.</b> The deadline passed. Her daughter lost the school place.
+        The same week, her sick child's SHA health payment failed at the clinic counter — same platform, same dead login.
+        <span class="who">Composite story built from real, reported eCitizen outages (illustrative persona)</span>
+      </div>
+      <div class="chips">
+        <div class="chip"><b>5 Mar 2026:</b> nationwide eCitizen system downtime — users forced to reset passwords; logins failed for days</div>
+        <div class="chip"><b>KRA eTIMS down:</b> taxpayers &amp; businesses locked out for a third straight day — invoices in limbo (CoFek)</div>
+        <div class="chip"><b>Login glitches &amp; missing profiles:</b> thousands affected; NTSA portal also stops working</div>
+        <div class="chip"><b>Millions locked out:</b> ID cards, passports, business permits, SHA health, university fees</div>
+      </div>
+    </div>
+    <div class="col" style="flex:.95;gap:1.4vh">
+      <div class="photo" style="flex:1.2">
+        <img src="img/ecitizen_phone.webp" alt="eCitizen login on phone">
+        <div class="cap">The login that millions depend on daily — eCitizen (Kenya Times)</div>
+      </div>
+      <div class="photo" style="flex:1">
+        <img src="img/ecitizen_passport.webp" alt="eCitizen passport failure">
+        <div class="cap">"System failure": govt admits eCitizen glitch paralysing passport services</div>
+      </div>
+    </div>
+  </div>
+  <div class="src">Sources: Kenyans.co.ke (nationwide downtime &amp; forced password resets, Mar 2026) · CoFek (KRA eTIMS via eCitizen, 3-day lockdown) · Kenya Times (login glitches, missing profiles; NTSA outage) · StreamlineFeed (passport failure, Nyayo House queues)</div>
+</section>
+
+<!-- 5 · BETIKA -->
+<section class="slide">
+  <div class="kicker">The problem · Betika</div>
+  <h2>Betika: KSh 11.4 million gone in minutes — and a year of denial</h2>
+  <div class="row" style="gap:1.8vw">
+    <div class="col fill" style="flex:1.1">
+      <div class="flow">
+        <span class="pill r">Jan–Jul 2025 · spree</span><span class="arr">→</span>
+        <span class="pill r">KSh 11.4M siphoned</span><span class="arr">→</span>
+        <span class="pill">30 Aug 2025 · arrest</span><span class="arr">→</span>
+        <span class="pill r">2026 · denial, probe + court</span>
+      </div>
+      <ul class="clean">
+        <li><b>One man, minutes, millions:</b> Seth Mwabe Okwanyo, 26 — a Meru University IT dropout — bypassed Betika's payment service provider and diverted <b>KSh 11.4 million</b>. DCI's Banking Fraud unit arrested him at his Tatu City apartment on <b>30 August 2025</b>; the money was already gone.</li>
+        <li><b>Denial first, investigation later:</b> Betika publicly denied any breach and insisted customer data was safe (Sep 2025) — while the DCI opened a probe into an alleged <b>29.5-million-record</b> data exposure tied to High Court petition E095/2026.</li>
+        <li><b>Regulators caught up anyway:</b> the Data Protection Commissioner fined Betika <b>KSh 250,000</b> for demanding excessive player data — a small fine next to the reputational damage.</li>
+        <li><b>The root problem:</b> nobody had tested the doors. Point-in-time audits and PR statements don't stop an attacker — <span class="hl">continuous, evidence-backed testing does.</span></li>
+      </ul>
+    </div>
+    <div class="col" style="flex:.8">
+      <div class="photo" style="flex:1">
+        <img src="img/betika_fine.jpeg" alt="Betika fined by ODPC">
+        <div class="cap">Betika ordered to pay KSh 250,000 for breaching data-privacy rules — iGamingToday</div>
+      </div>
+      <div class="card danger">
+        <p style="color:#ffb9c0;font-size:2vh"><b style="color:var(--red)">Pattern:</b> attackers need <b>one door</b>, open for <b>minutes</b>. Kenyan organisations test once a year — if at all — then discover breaches through journalists and court filings.</p>
+      </div>
+    </div>
+  </div>
+  <div class="src">Sources: DCI/Betika case reporting (Jul–Aug 2025) · BNN &amp; Whownskenya (Seth Mwabe Okwanyo profile, arrest) · Kenya-Today (bond release, Jan–Jul spree) · Tech-ish (Betika denial, Sep 2025) · PDP Initiative (29.5M records, Jun 2026) · iGamingToday (ODPC fine)</div>
+</section>
+
+<!-- 6 · THE GAP -->
+<section class="slide">
+  <div class="kicker">The problem · why it keeps happening</div>
+  <h2>Defenders are bringing a photo to a video fight</h2>
+  <div class="row grow">
+    <div class="col" style="flex:1">
+      <div class="card danger"><h3>⏱️ Testing is slow</h3><p>A manual pentest takes <b>weeks to schedule and days to run</b> — while Kenya logged <b>11,124,632,684</b> threat events in FY2025/26 — <b>≈30 million every single day</b>. Attackers test your doors daily; you test yours annually.</p></div>
+      <div class="card danger"><h3>💸 Testing is expensive</h3><p>Pentera ≈ <b>$120K/year</b>. Burp DAST scales to <b>$200K+/year</b>. Manual engagements run <b>$10K–$50K each</b>. Counties, SMEs and most parastatals are priced out entirely.</p></div>
+      <div class="card danger"><h3>🕳️ Scanners find symptoms, not chains</h3><p>Free/cheap scanners emit noise — no reasoning, no multi-step exploitation, no business context. Senior pentesters drown in triage instead of hunting.</p></div>
+    </div>
+    <div class="col" style="flex:1">
+      <div class="card danger"><h3>❓ Fixes are never verified</h3><p>"Patch deployed" ≠ "vulnerability gone". Retesting is an afterthought — so the same hole gets re-reported, or quietly stays open (see: repeat attacks on president.go.ke).</p></div>
+      <div class="card danger"><h3>🔦 Evidence is scarce after the fact</h3><p>When the State House site fell, officials launched a forensic audit <b>after</b> the defacement. Without continuous traced evidence, you're reconstructing history instead of preventing it.</p></div>
+      <div class="card danger"><h3>🧑‍🔬 Too few experts, too many systems</h3><p>eCitizen alone fronts <b>15,000+ services</b>. Kenya's talent pool can't manually cover every ministry, county, bank and fintech — the math never closes.</p></div>
+    </div>
+  </div>
+  <div class="src">Sources: CA Kenya Q4 FY2025/26 Sector Statistics &amp; KE-CIRT/CC report (Sep 2026) · Pentera public list price (~$120K/yr, AWS Marketplace) · Burp Suite DAST $6K–$200K+/yr (2026 pricing guides) · industry manual pentest ranges $10K–$50K</div>
+</section>
+
+<!-- 7 · INTRODUCE NEMESIS -->
+<section class="slide">
+  <div class="kicker">The solution</div>
+  <h1 style="font-size:7.4vh;margin-bottom:1.2vh">Introducing <span class="accent">NEMESIS</span></h1>
+  <p class="lead" style="font-size:2.7vh">An AI that thinks like an attacker, works like a team of ethical hackers,
+  and closes the loop like a disciplined security engineer — <span class="hl-g">with a human always in control.</span></p>
+  <div class="two distribute" style="margin-top:2.4vh;flex:1;min-height:0">
+    <ul class="clean">
+      <li><b>Autonomous multi-agent testing:</b> a planner breaks the goal into intents; N workers execute real tools (Kali, HTTP, Bash) 24/7 — no annual scheduling.</li>
+      <li><b>Proven findings, not guesses:</b> every vulnerability needs a reproducible PoC, measured impact, and survives an adversarial "try to disprove it" gate.</li>
+      <li><b>Human in the loop:</b> chat to steer the attack, approve or deny risky actions, set scope &amp; constraints — the agent asks before it crosses a line.</li>
+    </ul>
+    <ul class="clean">
+      <li><b>Fix verification built in:</b> deploy your fix, and Nemesis's retest agent independently re-proves it — <span class="green">Fixed / Still reproducible / Cannot confirm</span>, with evidence.</li>
+      <li><b>Full evidence trail:</b> every tool call, every request, every decision is recorded (MITM traffic capture, activity streams, approval audit logs).</li>
+      <li><b>Open source &amp; self-hosted:</b> AGPL-3.0, runs on your infrastructure, works with any LLM — including local models. You own your data.</li>
+    </ul>
+  </div>
+  <div class="flow" style="margin-top:2.6vh">
+    <span class="pill r">Scope</span><span class="arr">→</span>
+    <span class="pill">🤖 Planner</span><span class="arr">→</span>
+    <span class="pill">⚔️ Workers</span><span class="arr">→</span>
+    <span class="pill">🧾 Evidence</span><span class="arr">→</span>
+    <span class="pill">🧑‍⚖️ Human approves</span><span class="arr">→</span>
+    <span class="pill">🔧 Fix</span><span class="arr">→</span>
+    <span class="pill g">✅ Retest verified</span>
+  </div>
+  <div class="src">Nemesis: AI autonomous penetration testing system · Go backend + Next.js UI + PostgreSQL · built on the norma agent SDK · AGPL-3.0</div>
+</section>
+
+<!-- 8 · ARCHITECTURE -->
+<section class="slide">
+  <div class="kicker">How it works</div>
+  <h2>Architecture: dual graphs + an event-driven agent loop</h2>
+  <div class="arch">
+    <svg viewBox="0 0 1200 460" preserveAspectRatio="xMidYMid meet" font-family="Inter,Segoe UI,sans-serif">
+      <defs>
+        <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto"><path d="M0,0 L7,3.2 L0,6.4 Z" fill="#6b6b85"/></marker>
+        <marker id="ahg" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto"><path d="M0,0 L7,3.2 L0,6.4 Z" fill="#21d07a"/></marker>
+        <marker id="ahr" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto"><path d="M0,0 L7,3.2 L0,6.4 Z" fill="#ff4d5e"/></marker>
+      </defs>
+      <!-- UI -->
+      <rect x="20" y="14" width="1160" height="74" rx="12" fill="#15151f" stroke="#24243a"/>
+      <text x="40" y="42" fill="#e9e9f2" font-size="19" font-weight="700">🖥️ Web UI — Next.js (embedded in the single binary)</text>
+      <text x="40" y="68" fill="#9a9ab4" font-size="15">Dashboard · Tasks · Asset &amp; coverage graphs · Findings · Traffic · Human-in-the-loop chat · Interception approvals · Retest</text>
+      <!-- server -->
+      <rect x="20" y="112" width="560" height="102" rx="12" fill="#101018" stroke="#24243a"/>
+      <text x="40" y="140" fill="#e9e9f2" font-size="19" font-weight="700">⚙️ Go server — REST API · JWT · SSE live stream</text>
+      <text x="40" y="166" fill="#9a9ab4" font-size="15">Manager (task lifecycle) → event-driven Engine</text>
+      <text x="40" y="188" fill="#6b6b85" font-size="14.5">debounce → wake planner on graph change · pause / kill / steer / budgets</text>
+      <!-- agents -->
+      <rect x="610" y="112" width="570" height="102" rx="12" fill="#101018" stroke="rgba(255,77,94,.55)"/>
+      <text x="630" y="140" fill="#ff4d5e" font-size="19" font-weight="700">🧠 Agent layer (multi-agent)</text>
+      <text x="630" y="166" fill="#e9e9f2" font-size="15">Planner (sole intent generator) → dispatches 0..N intents</text>
+      <text x="630" y="188" fill="#9a9ab4" font-size="14.5">N Workers claim ONE intent each · Main agent = human interface (steer, approve)</text>
+      <!-- dual graphs -->
+      <rect x="20" y="234" width="560" height="130" rx="12" fill="#101018" stroke="rgba(33,208,122,.5)"/>
+      <text x="40" y="256" fill="#21d07a" font-size="19" font-weight="700">📊 Dual graphs — PostgreSQL (single source of truth)</text>
+      <text x="40" y="284" fill="#e9e9f2" font-size="15">Asset graph: domains → services → endpoints (global, deduped)</text>
+      <text x="40" y="308" fill="#e9e9f2" font-size="15">Exploration graph: goals → intents → facts → findings (per-task)</text>
+      <text x="40" y="332" fill="#9a9ab4" font-size="15">anchors link intents/facts/findings to real assets → coverage base</text>
+      <!-- supporting -->
+      <rect x="610" y="234" width="570" height="130" rx="12" fill="#101018" stroke="#24243a"/>
+      <text x="630" y="256" fill="#e9e9f2" font-size="19" font-weight="700">🧰 Safety &amp; evidence subsystems</text>
+      <text x="630" y="284" fill="#9a9ab4" font-size="15">MITM proxy (all HTTP traced) · Guard: allow / ask → human / deny</text>
+      <text x="630" y="308" fill="#9a9ab4" font-size="15">DNS/HTTP enrichment · audit logs · budgets &amp; wrap-up · injection defences</text>
+      <text x="630" y="332" fill="#9a9ab4" font-size="15">MCP tools · skills · memory · report · retest agent · RSI shadow-mode</text>
+      <!-- retest loop -->
+      <rect x="20" y="374" width="1160" height="66" rx="12" fill="rgba(33,208,122,.08)" stroke="rgba(33,208,122,.5)"/>
+      <text x="40" y="402" fill="#21d07a" font-size="18" font-weight="700">🔁 The closed loop: graph change → planner wakes → dispatch intents → workers execute with real tools →</text>
+      <text x="40" y="428" fill="#e9e9f2" font-size="16">write facts/findings + evidence → wake planner again → human steers/approves anytime → fix deployed → retest agent proves it → status: <tspan fill="#21d07a" font-weight="700">FIXED</tspan></text>
+      <!-- arrows -->
+      <line x1="580" y1="155" x2="610" y2="155" stroke="#6b6b85" stroke-width="2" marker-end="url(#ah)"/>
+      <line x1="300" y1="214" x2="300" y2="234" stroke="#6b6b85" stroke-width="2" marker-end="url(#ah)"/>
+      <line x1="895" y1="214" x2="895" y2="234" stroke="#6b6b85" stroke-width="2" marker-end="url(#ah)"/>
+      <line x1="610" y1="306" x2="580" y2="306" stroke="#21d07a" stroke-width="2" marker-end="url(#ahg)"/>
+      <path d="M 1180 155 C 1200 155, 1200 140, 1195 120" fill="none" stroke="none"/>
+      <path d="M 610 130 C 596 105, 300 100, 300 112" fill="none" stroke="#ff4d5e" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ahr)"/>
+      <text x="430" y="102" fill="#ff4d5e" font-size="14.5" font-weight="600">agent activity → SSE live stream</text>
+    </svg>
+    <div class="arch-notes">
+      <div class="an"><span class="n">1</span><b>Why dual graphs?</b> One graph holds what exists (assets, shared across tasks); one holds how you're thinking (per-task attack chain). Nothing is re-derived, nothing is lost between wake-ups.</div>
+      <div class="an"><span class="n">2</span><b>Why planner + workers?</b> The planner only decides <i>direction</i> (no duplicate intents, serial chains dispatched step-by-step); workers only execute one intent each — chaos becomes a controlled pipeline.</div>
+      <div class="an"><span class="n">3</span><b>Why human-in-the-loop?</b> Every risky call can hit an "ask" gate; the human chats to steer, approve, or constrain — autonomy with a seatbelt, and a full audit trail behind it.</div>
+    </div>
+  </div>
+  <div class="src">Engine is event-driven: any graph change wakes the planner (debounced); workers claim one intent from the frontier, execute through the recording proxy, write back, and wake the next round until prove_goal.</div>
+</section>
+
+<!-- 9 · SCREENSHOTS 1 -->
+<section class="slide">
+  <div class="kicker">Nemesis in action</div>
+  <h2>The cockpit: live execution, graphs, evidence</h2>
+  <div class="shots g3">
+    <div class="shot" style="grid-row:span 2"><span class="cap">📊 Dashboard</span><img src="img/nemesis-dashboard.png" alt="Nemesis dashboard"></div>
+    <div class="shot"><span class="cap blue">⚔️ Worker sessions — real tool calls</span><img src="img/nemesis-sessions.png" alt="Execution sessions"></div>
+    <div class="shot"><span class="cap red">🧠 Exploration graph — attack lineage</span><img src="img/nemesis-graph.png" alt="Exploration graph"></div>
+    <div class="shot"><span class="cap amber">🧾 Findings with proof &amp; status</span><img src="img/nemesis-findings.png" alt="Findings"></div>
+    <div class="shot"><span class="cap">Coverage: which assets were actually tested</span><img src="img/nemesis-assets_test.png" alt="Asset coverage graph"></div>
+  </div>
+  <div class="src">Real Nemesis UI · every session shows the agent's thinking, tool calls and outputs — not a black box</div>
+</section>
+
+<!-- 10 · SCREENSHOTS 2 -->
+<section class="slide">
+  <div class="kicker">Nemesis in action</div>
+  <h2>Evidence, steering and approvals</h2>
+  <div class="shots g2">
+    <div class="shot"><span class="cap amber">📶 Traffic capture — traced request/response evidence</span><img src="img/nemesis-traffic.png" alt="Traffic recording"></div>
+    <div class="shot"><span class="cap">💬 Human-in-the-loop chat — steer the agent</span><img src="img/nemesis-chat.png" alt="HITL chat"></div>
+    <div class="shot"><span class="cap red">🛑 Interception approvals — ask / deny / allow</span><img src="img/nemesis-intercept.png" alt="Interception approvals"></div>
+    <div class="shot"><span class="cap blue">📋 Tasks &amp; live activity stream</span><img src="img/nemesis-tasks.png" alt="Task list"></div>
+  </div>
+  <div class="src">Every risky action can pause for human approval; every byte of target traffic becomes reviewable evidence bound to findings</div>
+</section>
+
+<!-- 11 · HITL + FIX LOOP -->
+<section class="slide">
+  <div class="kicker">Trust &amp; control</div>
+  <h2>Autonomy with a seatbelt — and a fix-verification loop</h2>
+  <div class="two grow">
+    <div class="col">
+      <div class="card"><h3>🧑‍⚖️ Human in the loop, at every layer</h3>
+        <p>• <b>Approval gates:</b> intercept rules judge every tool call — <span class="accent">allow / ask / deny</span>. "Ask" pauses the agent until a human approves or rejects; denials are logged.<br>
+        • <b>Steer, don't restart:</b> chat with the main agent to change direction, inject hints, add goals, or set <b>allow/deny constraints</b> injected as top-priority red lines.<br>
+        • <b>Budgets:</b> turn + wall-clock limits per run with forced wrap-up — no runaway agents, no runaway bills.</p></div>
+      <div class="card"><h3>🔍 Findings that survive scrutiny</h3>
+        <p>Adversarial gate before reporting: reachability · preconditions · downstream controls · scope · simpler explanation. Every finding carries a <b>reproducible PoC</b>, <b>measured impact</b> ("3 of 20 payloads worked") and a <b>proof basis</b>. Zero findings is a valid result — no manufactured noise.</p></div>
+    </div>
+    <div class="col">
+      <div class="card good"><h3>🔁 The loop competitors don't have: verified fixes</h3>
+        <div class="flow" style="margin:.8vh 0">
+          <span class="pill r">Finding</span><span class="arr">→</span><span class="pill">Evidence</span><span class="arr">→</span>
+          <span class="pill">🧑‍🔧 Dev fixes</span><span class="arr">→</span><span class="pill g">Retest agent</span><span class="arr">→</span>
+          <span class="pill g">✅ FIXED</span>
+        </div>
+        <p>Retest runs as an <b>independent agent session</b> with the original evidence and context. Conclusions: <span class="green">Fixed</span> / <span class="accent">Still reproducible</span> / Cannot confirm — each with evidence and a session link. On "Fixed", the finding status updates automatically; original evidence is preserved forever.</p></div>
+      <div class="card"><h3>📜 Full audit trail</h3>
+        <p>Approval records, backend logs, per-step activity, transcripts, traffic archive — reconstruct exactly what the agent did, when, and why. Regulator-ready evidence for CA/KICA and Data Protection Act inquiries.</p></div>
+    </div>
+  </div>
+  <div class="src">Guard/intercept evaluates DB-configured rules with optional LLM fallback judge; approval timeouts fail closed ("manual approval not granted").</div>
+</section>
+
+<!-- 12 · LANDSCAPE -->
+<section class="slide">
+  <div class="kicker">The landscape</div>
+  <h2>Similar tools: what they cost — and what they leave out</h2>
+  <div style="flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center">
+  <table>
+    <thead><tr><th style="width:22%">Tool / approach</th><th style="width:20%">Typical cost</th><th>Limitation that leaves Kenyans exposed</th></tr></thead>
+    <tbody>
+      <tr><td>Manual pentest (consultancy)</td><td class="cost">$10K–$50K per engagement</td><td>Weeks to schedule · point-in-time snapshot · no continuous coverage · retest usually extra</td></tr>
+      <tr><td>Burp Suite Pro / DAST</td><td class="cost">$499/user/yr · up to $200K+/yr</td><td>Scanning &amp; manual tooling — no autonomous multi-step chaining, no exploit proof, no fix loop</td></tr>
+      <tr><td>Pentera (automated validation)</td><td class="cost">≈ $120K/year (list), quote-only</td><td>Network-focused · enterprise-priced beyond SME/county reach · no verified-fix loop</td></tr>
+      <tr><td>XBOW · NodeZero (AI pentest)</td><td class="cost">Quote-only, scoped per env</td><td>Black-box SaaS · data leaves your perimeter · no local human-steering workflow or evidence graph</td></tr>
+      <tr><td>Bug bounty platforms</td><td class="cost">Retainers + bounties: $10Ks–$100Ks/yr</td><td>Slow, inconsistent coverage · you pay per bug · no systematic retest/verification</td></tr>
+      <tr><td>Open scanners (ZAP, Nuclei…)</td><td class="cost">"Free"</td><td>No reasoning or chaining · alert fatigue · huge triage burden · no evidence of real impact</td></tr>
+      <tr class="win"><td>NEMESIS</td><td class="cost">Open source · self-hosted · you pay only LLM usage</td><td>Full loop: plan → exploit → prove → human approves → fix → <b>verified retest</b> — with every action traced</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="src">Prices: PortSwigger 2026 pricing guides · Pentera AWS list price &amp; UK rate card · AI-pentest pricing surveys (Nov 2026) · industry manual-pentest ranges. Nemesis = your infra + metered model usage.</div>
+</section>
+
+<!-- 13 · WHY NEMESIS (MAPPING) -->
+<section class="slide">
+  <div class="kicker">Why Nemesis wins</div>
+  <h2>Every problem above, answered directly</h2>
+  <div class="map">
+    <div class="mrow"><div class="p"><b>Problem</b>president.go.ke defaced — twice in 12 months</div><div class="s"><b>Nemesis answer</b>Continuous autonomous testing finds the defacement vector before attackers do — with proof, not theory</div></div>
+    <div class="mrow"><div class="p"><b>Problem</b>KSh 29.9B lost in 3 months; tools cost $120K+/yr</div><div class="s"><b>Nemesis answer</b>Open source, self-hosted: cost = your LLM usage. Affordable for counties, SMEs, parastatals</div></div>
+    <div class="mrow"><div class="p"><b>Problem</b>eCitizen outage locked out millions</div><div class="s"><b>Nemesis answer</b>Scope constraints, approval gates &amp; budgets make autonomy safe to run on critical public infrastructure</div></div>
+    <div class="mrow"><div class="p"><b>Problem</b>Betika: KSh 11.4M gone in minutes, found late</div><div class="s"><b>Nemesis answer</b>Every action traced to evidence — traffic capture + audit logs reconstruct any incident instantly</div></div>
+    <div class="mrow"><div class="p"><b>Problem</b>BRS: 2M+ records stolen, zero consequences</div><div class="s"><b>Nemesis answer</b>Continuous testing finds the door before the data walks out — with proof, before regulators arrive</div></div>
+    <div class="mrow"><div class="p"><b>Problem</b>Annual tests vs 11.12B threats/year</div><div class="s"><b>Nemesis answer</b>A planner + worker team runs 24/7 — testing measured in hours, not quarterly windows</div></div>
+    <div class="mrow"><div class="p"><b>Problem</b>"Fixed" claims never verified</div><div class="s"><b>Nemesis answer</b>Retest agent independently re-proves every fix — the loop closes with evidence, automatically</div></div>
+  </div>
+  <div class="src">Only positives, mapped one-to-one to the incidents and costs shown earlier in this deck.</div>
+</section>
+
+<!-- 14 · VISION -->
+<section class="slide">
+  <div class="kicker">Think bigger</div>
+  <h2>From one tool to Kenya's continuous security shield</h2>
+  <div class="two distribute">
+    <div class="col">
+      <ul class="clean">
+        <li><b>eCitizen-grade defence:</b> run Nemesis continuously against the platforms 15,000+ services depend on — find the door before a ransom note does.</li>
+        <li><b>Security regression testing:</b> like CI/CD, but for exploits — every deploy triggers a retest of what matters; fixes stay fixed.</li>
+        <li><b>Compliance, evidenced:</b> KICA/CA guidelines and the Data Protection Act demand proof — Nemesis produces approval logs, traces and reports natively.</li>
+        <li><b>Priced for the whole pyramid:</b> national government → county → bank → fintech → SME. Same open-source core, metered AI cost.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <ul class="clean">
+        <li><b>Pan-African problem, exportable fix:</b> Africa loses <b>$5B/year</b>. Nemesis is AGPL open source — every country can deploy it on its own terms.</li>
+        <li><b>Safe self-improvement:</b> evidence-gated "lessons" from closed tasks (shadow mode today) make the system smarter — never silently, always owner-approved.</li>
+        <li><b>Human expertise, multiplied:</b> one senior pentester steering an agent fleet covers what a 10-person team can't — the talent math finally closes.</li>
+        <li><b>The standard for trustworthy AI security:</b> autonomy where it's fast, humans where it matters, evidence everywhere.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card good" style="margin-top:1.6vh">
+    <p style="font-size:2.2vh;color:#d5f5e6"><b class="green">The vision:</b> no Kenyan platform should ever face a hacker who tested its doors more recently than its defenders did.</p>
+  </div>
+  <div class="src">RSI/lesson layer status: measurement &amp; shadow mode only — adoption always requires an explicit owner action (see RSI.md contract).</div>
+</section>
+
+<!-- 15 · CLOSE -->
+<section class="slide cover">
+  <div class="bg" style="background-image:url('img/govt_websites_hacked.webp');opacity:.18"></div>
+  <div class="inner" style="width:100%">
+    <div class="logo"><span class="dot"></span> N E M E S I S</div>
+    <div class="big-quote">Find the door <span class="accent">before they do.</span><br>
+      Prove it. Fix it. <span class="green">Verify it.</span></div>
+    <div class="sub">Autonomous penetration testing · human-in-the-loop control · verified fixes.<br>
+      Open source. Self-hosted. Built to defend Kenya's digital public infrastructure.</div>
+    <div class="meta">
+      <span>🔓 github.com/Jamesjaq/NEMESIS</span>
+      <span>📜 AGPL-3.0</span>
+      <span>⚡ Live demo: dashboard → agent run → approval → retest</span>
+      <span>🙋 Questions?</span>
+    </div>
+  </div>
+  <div class="team">
+    <div class="tname"><span>S</span><span>C</span><span>A</span><span>T</span><span>T</span><span>E</span><span>R</span><span>E</span><span>D</span><span class="gap"></span><span>M</span><span>A</span><span>N</span><span>T</span><span>I</span><span>S</span></div>
+    <div class="tuni">Machakos University</div>
+  </div>
+  <div class="src">Use only against systems you own or are explicitly authorized to test.</div>
+</section>
+
+</div>
+<div id="nav">
+  <button id="prev" title="Previous (←)">‹</button>
+  <button id="next" title="Next (→)">›</button>
+</div>
+<div id="num">1 / 15</div>
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  let i=0;
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    document.getElementById('bar').style.width=((i+1)/slides.length*100)+'%';
+    document.getElementById('num').textContent=(i+1)+' / '+slides.length;
+  }
+  document.getElementById('next').onclick=()=>show(i+1);
+  document.getElementById('prev').onclick=()=>show(i-1);
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();show(i+1)}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();show(i-1)}
+    else if(e.key==='Home')show(0); else if(e.key==='End')show(slides.length-1);
+    else if(e.key.toLowerCase()==='f'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}
+  });
+  const qs=new URLSearchParams(location.search).get('s');
+  show(qs?parseInt(qs,10)-1||0:0);
+</script>
+</body>
+</html>
